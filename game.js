@@ -55,14 +55,32 @@ const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 function playSpookySound() {
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
+    const convolver = audioContext.createConvolver();
 
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 100; // Low-frequency sound
+    // Create an impulse response for the reverb effect
+    const reverbLength = 1;
+    const sampleRate = audioContext.sampleRate;
+    const buffer = audioContext.createBuffer(2, reverbLength * sampleRate, sampleRate);
+    const channelData = [buffer.getChannelData(0), buffer.getChannelData(1)];
+
+    for (let i = 0; i < sampleRate; i++) {
+        const progress = i / sampleRate;
+        const decay = Math.exp(-3 * progress);
+        const value = Math.random() * 2 - 1;
+        channelData[0][i] = value * decay;
+        channelData[1][i] = value * decay;
+    }
+
+    convolver.buffer = buffer;
+
+    oscillator.type = 'triangle'; // Use a triangle wave for a softer, more ghostly sound
+    oscillator.frequency.value = 75; // Lower frequency for a more ghostly sound
     oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(convolver);
+    convolver.connect(audioContext.destination);
 
     gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
     gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1);
 
     oscillator.start(audioContext.currentTime);
